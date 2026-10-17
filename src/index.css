@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Oswald", "Inter", ui-sans-serif, sans-serif;
+
+  --color-gold-100: #fbf1d3;
+  --color-gold-200: #f7e3a3;
+  --color-gold-300: #f0cf6a;
+  --color-gold-400: #e5b53a;
+  --color-gold-500: #c9971c;
+  --color-gold-600: #a37712;
+
+  --color-maroon-700: #7a1620;
+  --color-maroon-800: #5c0f17;
+  --color-maroon-900: #3d0a10;
+
+  --color-ink-800: #1c1714;
+  --color-ink-900: #13100e;
+  --color-ink-950: #0b0908;
+
+  --animate-countdown: countdown 1s ease-out both;
+  --animate-pop: pop 0.25s ease-out both;
+
+  @keyframes countdown {
+    0% {
+      transform: scale(1.6);
+      opacity: 0;
+    }
+    25% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(0.85);
+      opacity: 0.15;
+    }
+  }
+
+  @keyframes pop {
+    0% {
+      transform: translateY(-6px) scale(0.92);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-ink-950);
+  background-image:
+    radial-gradient(1200px 600px at 85% -10%, rgba(122, 22, 32, 0.35), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, rgba(201, 151, 28, 0.08), transparent 60%);
+  background-attachment: fixed;
+  color: #e7e5e4;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Batik kawung motif */
+.bg-batik {
+  background-color: rgba(11, 9, 8, 0.6);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23e5b53a' stroke-opacity='0.09' stroke-width='1.2'%3E%3Cellipse cx='28' cy='14' rx='7' ry='12'/%3E%3Cellipse cx='28' cy='42' rx='7' ry='12'/%3E%3Cellipse cx='14' cy='28' rx='12' ry='7'/%3E%3Cellipse cx='42' cy='28' rx='12' ry='7'/%3E%3Ccircle cx='28' cy='28' r='2'/%3E%3Ccircle cx='0' cy='0' r='3'/%3E%3Ccircle cx='56' cy='0' r='3'/%3E%3Ccircle cx='0' cy='56' r='3'/%3E%3Ccircle cx='56' cy='56' r='3'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.text-gradient-gold {
+  background: linear-gradient(180deg, #fbf1d3 0%, #f0cf6a 45%, #c9971c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(229, 181, 58, 0.18);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(229, 181, 58, 0.32);
+}
+
+input[type="number"]::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+
+select option {
+  background: #13100e;
+}
