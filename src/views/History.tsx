@@ -1,3 +1,5 @@
+'use client';
+
 import { ArrowLeft, ChevronRight, History as HistoryIcon, Trash2, Trophy } from 'lucide-react';
 import type { Report } from '../types';
 import { Badge, Button, Panel, Ring, scoreColor } from '../components/ui';

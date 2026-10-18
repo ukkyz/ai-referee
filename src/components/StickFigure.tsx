@@ -1,3 +1,5 @@
+'use client';
+
 import { useMemo } from 'react';
 import type { JointName, Skeleton } from '../types';
 import { normalizeFacing } from '../lib/pose/fk';

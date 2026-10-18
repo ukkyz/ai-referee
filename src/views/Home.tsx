@@ -1,5 +1,7 @@
+'use client';
+
 import { Camera, Clapperboard, Crosshair, Flame, Footprints, ListOrdered, Music, Pencil, Play, Plus, Scale, ScanLine, Sparkles, Timer, Trash2, Upload } from 'lucide-react';
-import heroImg from '../assets/hero.jpg';
+
 import type { Jurus } from '../types';
 import { Badge, Button, Panel } from '../components/ui';
 import StickFigure from '../components/StickFigure';
@@ -76,7 +78,7 @@ export default function Home({ presets, customs, onJudge, onCreate, onEdit, onDe
     <div>
       {/* ---------- Hero ---------- */}
       <section className="relative overflow-hidden border-b border-gold-500/15">
-        <img src={heroImg} alt="Pencak Silat performer with AI pose tracking" className="absolute inset-0 h-full w-full object-cover object-right opacity-90" />
+        <img src="/hero.jpg" alt="Pencak Silat performer with AI pose tracking" className="absolute inset-0 h-full w-full object-cover object-right opacity-90" />
         <div className="absolute inset-0 bg-gradient-to-r from-ink-950 via-ink-950/85 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-transparent to-transparent" />
         <div className="relative mx-auto max-w-[1300px] px-4 py-20 sm:px-6 lg:py-28">
@@ -194,7 +196,7 @@ export default function Home({ presets, customs, onJudge, onCreate, onEdit, onDe
             <span className="grid h-12 w-12 place-items-center rounded-full bg-gold-400/10 text-gold-300">
               <Clapperboard className="h-6 w-6" />
             </span>
-            <span className="font-display text-xl uppercase tracking-wide">Record a master's jurus</span>
+            <span className="font-display text-xl uppercase tracking-wide">Record a master&rsquo;s jurus</span>
             <span className="max-w-xs text-sm">A coach performs once in the Studio — key poses and timing are captured automatically, then students are judged against it.</span>
           </button>
         </div>

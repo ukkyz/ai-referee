@@ -1,30 +1,41 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "wasit-virtual-pencak-silat",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
+  "description": "Wasit Virtual Pencak Silat — an AI referee for Seni Tunggal jurus (Next.js + MediaPipe + SQLite)",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:reset": "node scripts/reset-db.mjs"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
+    "better-sqlite3": "^13.0.3",
     "clsx": "2.1.1",
     "lucide-react": "^1.51.0",
+    "next": "^15.5.28",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "server-only": "^0.0.1",
     "tailwind-merge": "3.4.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "4.1.17",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "22.19.17",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "5.1.1",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.28",
+    "postcss": "^8.5.30",
     "tailwindcss": "4.1.17",
-    "typescript": "5.9.3",
-    "vite": "7.3.2",
-    "vite-plugin-singlefile": "2.3.0"
+    "typescript": "5.9.3"
   }
 }

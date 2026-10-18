@@ -1,3 +1,5 @@
+'use client';
+
 import type { Report } from '../types';
 import { fmtTime } from '../lib/math';
 
