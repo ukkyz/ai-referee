@@ -1,15 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Clapperboard, History as HistoryIcon, House, LoaderCircle, Settings, TriangleAlert, X } from 'lucide-react';
-import { DEFAULT_SETTINGS, type Jurus, type RefereeSettings, type Report } from '../types';
+import { Clapperboard, History as HistoryIcon, House, LoaderCircle, Settings, Swords, TriangleAlert, X } from 'lucide-react';
+import { DEFAULT_SETTINGS, type DuelReport, type Jurus, type RefereeSettings, type Report } from '../types';
 import { PRESET_JURUS } from '../data/jurus';
-import { bootstrapFromServer, clearHistory, persistJurus, persistReport, persistSettings, removeJurus, removeReport } from '../lib/storage';
+import { bootstrapFromServer, clearHistory, persistDuel, persistJurus, persistReport, persistSettings, removeDuel, removeJurus, removeReport } from '../lib/storage';
 import Home from '../views/Home';
 import Arena from '../views/Arena';
 import Results from '../views/Results';
 import Studio from '../views/Studio';
 import History from '../views/History';
+import Duel from '../views/Duel';
+import DuelResults from '../views/DuelResults';
 import SettingsDialog from './SettingsDialog';
 import { Logo } from './ui';
 import { cn } from '../utils/cn';
@@ -19,7 +21,9 @@ type View =
   | { name: 'arena'; jurus: Jurus; attempt: number }
   | { name: 'results'; report: Report; from: 'arena' | 'history' }
   | { name: 'studio'; edit: Jurus | null }
-  | { name: 'history' };
+  | { name: 'history' }
+  | { name: 'duel'; attempt: number }
+  | { name: 'duel-results'; report: DuelReport };
 
 function NavButton({ active, onClick, icon, label, badge }: { active: boolean; onClick: () => void; icon: ReactNode; label: string; badge?: number }) {
   return (
@@ -42,6 +46,7 @@ export default function WasitApp() {
   const [settings, setSettings] = useState<RefereeSettings>(DEFAULT_SETTINGS);
   const [customs, setCustoms] = useState<Jurus[]>([]);
   const [history, setHistory] = useState<Report[]>([]);
+  const [duels, setDuels] = useState<DuelReport[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -54,6 +59,7 @@ export default function WasitApp() {
       setSettings(data.settings);
       setCustoms(data.customs);
       setHistory(data.history);
+      setDuels(data.duels);
       setDbError(null);
     } catch (e) {
       console.error('[app] failed to load data from SQLite API', e);
@@ -141,6 +147,41 @@ export default function WasitApp() {
     });
   };
 
+  const onDuelFinish = (r: DuelReport) => {
+    if (r.source !== 'demo') {
+      setDuels((prev) => [r, ...prev.filter((x) => x.id !== r.id)]);
+      persistDuel(r)
+        .then((saved) => setDuels((prev) => prev.map((x) => (x.id === saved.id ? saved : x))))
+        .catch((e) => {
+          console.warn('[app] failed to save duel', e);
+          setDuels((prev) => prev.filter((x) => x.id !== r.id));
+          setDbError('This match could not be saved to the database — export the JSON from the results page to keep it.');
+        });
+    }
+    setView({ name: 'duel-results', report: r });
+  };
+
+  const onDuelUpdate = (r: DuelReport) => {
+    setView({ name: 'duel-results', report: r });
+    if (r.source === 'demo') return;
+    setDuels((prev) => prev.map((x) => (x.id === r.id ? r : x)));
+    persistDuel(r).catch((e) => {
+      console.warn('[app] failed to update duel', e);
+      setDbError('The corrected verdict could not be saved to the database.');
+    });
+  };
+
+  const deleteDuel = (id: string) => {
+    if (!window.confirm('Hapus pertandingan ini dari riwayat?')) return;
+    const prev = duels;
+    setDuels(duels.filter((r) => r.id !== id));
+    removeDuel(id).catch((e) => {
+      console.warn('[app] failed to delete duel', e);
+      setDuels(prev);
+      setDbError('The match could not be deleted from the database.');
+    });
+  };
+
   const clearAllReports = () => {
     const prev = history;
     setHistory([]);
@@ -167,7 +208,7 @@ export default function WasitApp() {
   let content: ReactNode;
   switch (view.name) {
     case 'home':
-      content = <Home presets={PRESET_JURUS} customs={customs} onJudge={judge} onCreate={() => setView({ name: 'studio', edit: null })} onEdit={(j) => setView({ name: 'studio', edit: j })} onDelete={deleteJurus} />;
+      content = <Home presets={PRESET_JURUS} customs={customs} onJudge={judge} onCreate={() => setView({ name: 'studio', edit: null })} onEdit={(j) => setView({ name: 'studio', edit: j })} onDelete={deleteJurus} onTanding={() => setView({ name: 'duel', attempt: Date.now() })} />;
       break;
     case 'arena':
       content = <Arena key={view.attempt} jurus={view.jurus} settings={settings} onFinish={onFinish} onBack={() => setView({ name: 'home' })} />;
@@ -186,6 +227,28 @@ export default function WasitApp() {
     }
     case 'studio':
       content = <Studio key={view.edit?.id ?? 'new'} initial={view.edit} settings={settings} onSave={saveJurus} onTest={judge} onBack={() => setView({ name: 'home' })} />;
+      break;
+    case 'duel':
+      content = (
+        <Duel
+          key={view.attempt}
+          settings={settings}
+          duels={duels}
+          onFinish={onDuelFinish}
+          onOpen={(r) => setView({ name: 'duel-results', report: r })}
+          onDelete={deleteDuel}
+        />
+      );
+      break;
+    case 'duel-results':
+      content = (
+        <DuelResults
+          report={view.report}
+          onBack={() => setView({ name: 'duel', attempt: Date.now() })}
+          onRematch={() => setView({ name: 'duel', attempt: Date.now() })}
+          onUpdate={onDuelUpdate}
+        />
+      );
       break;
     case 'history':
       content = (
@@ -214,6 +277,7 @@ export default function WasitApp() {
           <nav className="ml-auto flex items-center gap-1">
             <NavButton active={view.name === 'home' || view.name === 'arena'} onClick={() => setView({ name: 'home' })} icon={<House className="h-4 w-4" />} label="Gelanggang" />
             <NavButton active={view.name === 'studio'} onClick={() => setView({ name: 'studio', edit: null })} icon={<Clapperboard className="h-4 w-4" />} label="Studio" />
+            <NavButton active={view.name === 'duel' || view.name === 'duel-results'} onClick={() => setView({ name: 'duel', attempt: Date.now() })} icon={<Swords className="h-4 w-4" />} label="Tanding" badge={duels.length || undefined} />
             <NavButton active={view.name === 'history' || (view.name === 'results' && view.from === 'history')} onClick={() => setView({ name: 'history' })} icon={<HistoryIcon className="h-4 w-4" />} label="Riwayat" badge={history.length || undefined} />
             <NavButton active={showSettings} onClick={() => setShowSettings(true)} icon={<Settings className="h-4 w-4" />} label="Settings" />
           </nav>
@@ -240,7 +304,7 @@ export default function WasitApp() {
       <footer className="border-t border-white/5 py-8 text-center text-xs text-stone-500">
         <div className="mx-auto max-w-3xl px-4 leading-relaxed">
           Pose estimation runs entirely in your browser (MediaPipe Pose Landmarker) — video never leaves your device. Custom jurus, settings and verdict history are stored on the server in SQLite. Scoring follows the IPSI Seni
-          Tunggal structure: Nilai Kebenaran (100 − kesalahan), Nilai Kemantapan (50–60) and time penalties. A training aid, not an official competition result.
+          Tunggal structure: Nilai Kebenaran (100 − kesalahan), Nilai Kemantapan (50–60) and time penalties. The Tanding module tracks two fighters (1 camera, or a synchronized 3-camera 3D rig) and scores pukulan 1 · tendangan 2 · jatuhan 3 · kuncian 4 with an illegal-target penalty ladder. A training aid, not an official competition result.
         </div>
       </footer>
 

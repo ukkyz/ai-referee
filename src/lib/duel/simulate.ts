@@ -1,6 +1,6 @@
 import { JOINTS, type JointName } from '../../types';
 import type { FighterObs } from './fightDetector';
-import type { Pt } from './geometry';
+import type { Pt3 } from './geometry';
 
 /**
  * Procedural demo fight: two side-view puppets exchange choreographed
@@ -80,11 +80,11 @@ interface Seg {
   arm: 'front' | 'back';
 }
 
-const P = (x: number, y: number): Pt => ({ x, y, v: 0.95 });
-const lerpPt = (a: Pt, b: Pt, u: number): Pt => P(lerp(a.x, b.x, u), lerp(a.y, b.y, u));
+const P = (x: number, y: number): Pt3 => ({ x, y, z: 0, v: 0.95 });
+const lerpPt = (a: Pt3, b: Pt3, u: number): Pt3 => P(lerp(a.x, b.x, u), lerp(a.y, b.y, u));
 
 /** Build one puppet's joints. `f` = facing (+1 right, −1 left). Front limbs map to l* when facing right, r* when left. */
-function buildFighter(hipX: number, f: 1 | -1, t: number, pose: Pose, oppCentroid: Pt | null, oppShoulder: Pt | null): Record<JointName, Pt> {
+function buildFighter(hipX: number, f: 1 | -1, t: number, pose: Pose, oppCentroid: Pt3 | null, oppShoulder: Pt3 | null): Record<JointName, Pt3> {
   const bounce = pose.down > 0.05 ? 0 : Math.sin(t * 2.4 + (f > 0 ? 0 : 1.7)) * 0.018 * L;
   const hipY = GROUND - 1.62 * L + bounce + pose.down * 1.44 * L;
   const hip = P(hipX, hipY);
@@ -153,8 +153,8 @@ function buildFighter(hipX: number, f: 1 | -1, t: number, pose: Pose, oppCentroi
     elbowB = lerpPt(elbowB, P(shoulderMid.x + f * 0.18 * L, GROUND - 0.07 * L), pose.down);
   }
 
-  const front: Record<string, Pt> = { hip: frontHip, knee: frontKnee, ankle: frontAnkle, foot: frontFoot, shoulder: frontShoulder, elbow: elbowF, wrist: wristF };
-  const back: Record<string, Pt> = { hip: backHip, knee: backKnee, ankle: backAnkle, foot: backFoot, shoulder: backShoulder, elbow: elbowB, wrist: wristB };
+  const front: Record<string, Pt3> = { hip: frontHip, knee: frontKnee, ankle: frontAnkle, foot: frontFoot, shoulder: frontShoulder, elbow: elbowF, wrist: wristF };
+  const back: Record<string, Pt3> = { hip: backHip, knee: backKnee, ankle: backAnkle, foot: backFoot, shoulder: backShoulder, elbow: elbowB, wrist: wristB };
   const Lside = f === 1 ? front : back;
   const Rside = f === 1 ? back : front;
 
@@ -177,7 +177,7 @@ function buildFighter(hipX: number, f: 1 | -1, t: number, pose: Pose, oppCentroi
   };
 }
 
-function centroidOf(j: Record<JointName, Pt>): Pt {
+function centroidOf(j: Record<JointName, Pt3>): Pt3 {
   const hip = { x: (j.lHip.x + j.rHip.x) / 2, y: (j.lHip.y + j.rHip.y) / 2 };
   const sho = { x: (j.lShoulder.x + j.rShoulder.x) / 2, y: (j.lShoulder.y + j.rShoulder.y) / 2 };
   return P((hip.x + sho.x) / 2, (hip.y + sho.y) / 2);
@@ -294,8 +294,8 @@ export class DemoFight {
     const sho1 = P((j1a.lShoulder.x + j1a.rShoulder.x) / 2, (j1a.lShoulder.y + j1a.rShoulder.y) / 2);
     const j0 = poses[0].wrapAmt > 0 || poses[0].gripAmt > 0 ? buildFighter(xMerah, 1, t, poses[0], c1, sho1) : j0a;
     const j1 = poses[1].wrapAmt > 0 || poses[1].gripAmt > 0 ? buildFighter(xBiru, -1, t, poses[1], c0, sho0) : j1a;
-    const clean = (j: Record<JointName, Pt>) => {
-      const out = {} as Record<JointName, Pt>;
+    const clean = (j: Record<JointName, Pt3>) => {
+      const out = {} as Record<JointName, Pt3>;
       for (const k of JOINTS) out[k] = j[k];
       return out;
     };

@@ -1,6 +1,6 @@
 'use client';
 
-import { Camera, Clapperboard, Crosshair, Flame, Footprints, ListOrdered, Music, Pencil, Play, Plus, Scale, ScanLine, Sparkles, Timer, Trash2, Upload } from 'lucide-react';
+import { Camera, Clapperboard, Crosshair, Flame, Footprints, ListOrdered, Music, Pencil, Play, Plus, Scale, ScanLine, Sparkles, Swords, Timer, Trash2, Upload } from 'lucide-react';
 
 import type { Jurus } from '../types';
 import { Badge, Button, Panel } from '../components/ui';
@@ -16,6 +16,7 @@ interface Props {
   onCreate: () => void;
   onEdit: (j: Jurus) => void;
   onDelete: (id: string) => void;
+  onTanding: () => void;
 }
 
 function JurusCard({ j, onJudge, onEdit, onDelete }: { j: Jurus; onJudge: () => void; onEdit?: () => void; onDelete?: () => void }) {
@@ -72,7 +73,7 @@ function JurusCard({ j, onJudge, onEdit, onDelete }: { j: Jurus; onJudge: () => 
   );
 }
 
-export default function Home({ presets, customs, onJudge, onCreate, onEdit, onDelete }: Props) {
+export default function Home({ presets, customs, onJudge, onCreate, onEdit, onDelete, onTanding }: Props) {
   const scrollToList = () => document.getElementById('jurus-list')?.scrollIntoView({ behavior: 'smooth' });
   return (
     <div>
@@ -83,9 +84,14 @@ export default function Home({ presets, customs, onJudge, onCreate, onEdit, onDe
         <div className="absolute inset-0 bg-gradient-to-t from-ink-950 via-transparent to-transparent" />
         <div className="relative mx-auto max-w-[1300px] px-4 py-20 sm:px-6 lg:py-28">
           <div className="max-w-2xl">
-            <Badge color="#e5b53a">
-              <Sparkles className="h-3 w-3" /> AI Referee · Seni Tunggal
-            </Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge color="#e5b53a">
+                <Sparkles className="h-3 w-3" /> AI Referee · Seni Tunggal
+              </Badge>
+              <Badge color="#f87171">
+                <Swords className="h-3 w-3" /> Baru · Tanding Duel Merah vs Biru
+              </Badge>
+            </div>
             <h1 className="mt-5 font-display text-5xl font-semibold uppercase leading-[0.95] tracking-wide text-stone-50 sm:text-7xl">
               Wasit Virtual
               <span className="text-gradient-gold block">Pencak Silat</span>
@@ -97,6 +103,9 @@ export default function Home({ presets, customs, onJudge, onCreate, onEdit, onDe
             <div className="mt-8 flex flex-wrap gap-3">
               <Button className="px-6 py-3 text-base" onClick={scrollToList}>
                 <Play className="h-5 w-5" /> Masuk Gelanggang
+              </Button>
+              <Button variant="danger" className="px-6 py-3 text-base" onClick={onTanding}>
+                <Swords className="h-5 w-5" /> Tanding / Duel
               </Button>
               <Button variant="outline" className="px-6 py-3 text-base" onClick={onCreate}>
                 <Plus className="h-5 w-5" /> Create your own jurus

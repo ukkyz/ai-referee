@@ -2,6 +2,7 @@ import 'server-only';
 
 import { DEFAULT_SETTINGS, type DuelReport, type Jurus, type RefereeSettings, type Report } from '@/types';
 import { databasePath, getDb } from './client';
+import { validateRigProfile, type RigProfile } from '@/lib/duel/rig/calibration';
 import { validateDuelReport, validateJurus, validateReport, validateSettings } from './validate';
 
 /** History was capped at 25 by the localStorage quota; SQLite raises the cap. */
@@ -271,6 +272,33 @@ export function countDuels(): number {
   return (getDb().prepare('SELECT COUNT(*) AS n FROM duels').get() as CountRow).n;
 }
 
+/* ------------------------------------------------------------- rig profile */
+
+export function getRigProfile(): { profile: RigProfile | null; persisted: boolean; updatedAt: number | null } {
+  const row = getDb().prepare('SELECT payload, updated_at FROM rig_profile WHERE id = 1').get() as SettingsRow | undefined;
+  if (!row) return { profile: null, persisted: false, updatedAt: null };
+  try {
+    return { profile: validateRigProfile(JSON.parse(row.payload)), persisted: true, updatedAt: row.updated_at };
+  } catch {
+    return { profile: null, persisted: false, updatedAt: null };
+  }
+}
+
+export function saveRigProfile(profile: RigProfile): RigProfile {
+  const valid = validateRigProfile(profile) ?? profile;
+  getDb()
+    .prepare(
+      `INSERT INTO rig_profile (id, payload, updated_at) VALUES (1, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`,
+    )
+    .run(JSON.stringify(valid), Date.now());
+  return valid;
+}
+
+export function clearRigProfile(): void {
+  getDb().prepare('DELETE FROM rig_profile WHERE id = 1').run();
+}
+
 /* ------------------------------------------------------- legacy import / misc */
 
 export interface LegacyImport {
@@ -313,7 +341,7 @@ export function importLegacyData(input: LegacyImport): { settings: boolean; juru
   return { settings: settingsImported, jurus: jurusImported, reports: reportsImported };
 }
 
-export function healthCheck(): { ok: boolean; database: string; counts: { customJurus: number; reports: number; duels: number; settingsPersisted: boolean } } {
+export function healthCheck(): { ok: boolean; database: string; counts: { customJurus: number; reports: number; duels: number; rigPersisted: boolean; settingsPersisted: boolean } } {
   getDb().prepare('SELECT 1').get();
   const file = databasePath();
   return {
@@ -323,6 +351,7 @@ export function healthCheck(): { ok: boolean; database: string; counts: { custom
       customJurus: countCustomJurus(),
       reports: countReports(),
       duels: countDuels(),
+      rigPersisted: getRigProfile().persisted,
       settingsPersisted: getSettings().persisted,
     },
   };

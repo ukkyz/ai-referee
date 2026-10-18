@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:duel": "tsx scripts/test-duel.ts",
+    "test:rig": "tsx scripts/test-rig.ts",
     "db:reset": "node scripts/reset-db.mjs"
   },
   "engines": {

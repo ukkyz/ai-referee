@@ -7,7 +7,7 @@ import { keyVisibility, MP_INDEX, smooth2D, toLandmarks2D, type Landmark2D } fro
 import type { FighterObs } from '../lib/duel/fightDetector';
 import { CORNER_COLORS, drawDuelFighters, type DrawFighter } from '../lib/duel/draw';
 import { JOINTS, type JointName, type ModelKind } from '../types';
-import type { Pt } from '../lib/duel/geometry';
+import type { Pt3 } from '../lib/duel/geometry';
 
 export interface DuelFrame {
   now: number;
@@ -25,16 +25,16 @@ interface Track {
   prevLm: Landmark2D[] | null;
   lastSeenAt: number;
   obs: FighterObs | null;
-  joints: Record<JointName, Pt> | null;
+  joints: Record<JointName, Pt3> | null;
 }
 
 const newTrack = (): Track => ({ centroid: null, prevLm: null, lastSeenAt: -Infinity, obs: null, joints: null });
 
-function toJoints(lm: Landmark2D[], aspect: number): Record<JointName, Pt> {
-  const out = {} as Record<JointName, Pt>;
+function toJoints(lm: Landmark2D[], aspect: number): Record<JointName, Pt3> {
+  const out = {} as Record<JointName, Pt3>;
   for (const j of JOINTS) {
     const p = lm[MP_INDEX[j]];
-    out[j] = { x: p.x * aspect, y: p.y, v: p.v };
+    out[j] = { x: p.x * aspect, y: p.y, z: 0, v: p.v };
   }
   return out;
 }

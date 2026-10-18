@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, type DuelReport, type Jurus, type RefereeSettings, type Report } from '../types';
+import type { RigProfile } from './duel/rig/calibration';
 
 /**
  * Persistence client — talks to the Next.js Route Handlers under /api/*,
@@ -120,6 +121,26 @@ export const persistDuel = async (duel: DuelReport): Promise<DuelReport> => {
 
 export const removeDuel = async (id: string): Promise<void> => {
   await api(`/api/duels/${encodeURIComponent(id)}`, { method: 'DELETE' });
+};
+
+export interface RigResponse {
+  profile: RigProfile | null;
+  persisted: boolean;
+  updatedAt: number | null;
+}
+
+export const fetchRigProfile = async (): Promise<RigResponse> => api<RigResponse>('/api/rig');
+
+export const persistRigProfile = async (profile: RigProfile): Promise<RigProfile> => {
+  const data = await api<{ profile: RigProfile }>('/api/rig', {
+    method: 'PUT',
+    body: JSON.stringify({ profile }),
+  });
+  return data.profile;
+};
+
+export const clearRigProfile = async (): Promise<void> => {
+  await api('/api/rig', { method: 'DELETE' });
 };
 
 /* -------------------------------------------------------------- bootstrap */

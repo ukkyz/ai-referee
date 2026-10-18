@@ -3,7 +3,7 @@ import 'server-only';
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import { SCHEMA_SQL, SCHEMA_VERSION } from './schema';
+import { runMigrations, SCHEMA_SQL, SCHEMA_VERSION } from './schema';
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -38,6 +38,7 @@ function openDatabase(): SqliteDatabase {
     db.pragma('synchronous = NORMAL');
   }
   db.exec(SCHEMA_SQL);
+  runMigrations(db);
   db.pragma(`user_version = ${SCHEMA_VERSION}`);
   return db;
 }

@@ -15,7 +15,7 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const LEVELS: Level[] = ['Pemula', 'Menengah', 'Mahir'];
 const MODELS: ModelKind[] = ['lite', 'full', 'heavy'];
 const SOURCES = ['camera', 'video', 'demo'] as const;
-const DUEL_SOURCES = ['camera', 'video', 'demo', 'manual'] as const;
+const DUEL_SOURCES = ['camera', 'rig', 'video', 'demo', 'manual'] as const;
 const DUEL_WINNERS = ['merah', 'biru', 'seri'] as const;
 
 export function validateJurus(value: unknown): Jurus | null {

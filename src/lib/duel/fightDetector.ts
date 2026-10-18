@@ -1,13 +1,16 @@
 import { CORNERS, opponentOf, type Corner, type DuelEvent, type DuelTechnique, type JointName, type TargetZone } from '../../types';
-import { angleAtDeg, angleFromVerticalDeg, dist, mid2, pointSeg, type Pt } from './geometry';
+import { angleAtDeg3, angleFromUpDeg3, dist3, mid3, pointSeg3, type Pt3 } from './geometry';
 import { COUNTER_WINDOW_S, makeEvent } from './rules';
 
 /**
  * Streaming Tanding event detector.
  *
- * Input: both fighters' 2D joints per frame in aspect-corrected image space
- * (x pre-multiplied by frame aspect, y down). All distances/speeds are
- * normalised by torso length, so thresholds are scale-invariant.
+ * Input: both fighters' joints per frame in canonical detector space
+ * (x = duel axis, y = down, z = depth). A single camera supplies z = 0
+ * (aspect-corrected image space); a calibrated multi-camera rig supplies
+ * triangulated metric 3D converted by rig/canonical.ts. All distances and
+ * speeds are normalised by torso length, so thresholds are scale-invariant
+ * across both sources.
  *
  * Detection model (heuristic, human-in-the-loop by design):
  * - Strike = end-effector (wrist/foot) fast extension towards the opponent.
@@ -23,7 +26,7 @@ import { COUNTER_WINDOW_S, makeEvent } from './rules';
  */
 
 export interface FighterObs {
-  joints: Record<JointName, Pt>;
+  joints: Record<JointName, Pt3>;
   visibility: number;
 }
 
@@ -35,9 +38,9 @@ export interface DuelSnapshot {
 }
 
 interface Derived {
-  hipMid: Pt;
-  shoulderMid: Pt;
-  centroid: Pt;
+  hipMid: Pt3;
+  shoulderMid: Pt3;
+  centroid: Pt3;
   torsoLen: number;
   shoulderW: number;
   torsoAngle: number;
@@ -46,21 +49,21 @@ interface Derived {
 
 function derive(o: FighterObs): Derived {
   const j = o.joints;
-  const hipMid = mid2(j.lHip, j.rHip);
-  const shoulderMid = mid2(j.lShoulder, j.rShoulder);
-  const torsoLen = Math.max(1e-6, dist(hipMid, shoulderMid));
+  const hipMid = mid3(j.lHip, j.rHip);
+  const shoulderMid = mid3(j.lShoulder, j.rShoulder);
+  const torsoLen = Math.max(1e-6, dist3(hipMid, shoulderMid));
   const ankleLow = Math.max(j.lAnkle.y, j.rAnkle.y);
   const legSpan = ankleLow - hipMid.y;
-  const torsoAngle = angleFromVerticalDeg(hipMid, shoulderMid);
+  const torsoAngle = angleFromUpDeg3(hipMid, shoulderMid);
   const kneeLow = Math.min(Math.abs(j.lKnee.y - ankleLow), Math.abs(j.rKnee.y - ankleLow));
   const horizontalDown = torsoAngle > 55 && legSpan < 0.65 * torsoLen;
   const kneeDown = kneeLow < 0.2 * torsoLen && legSpan < 0.95 * torsoLen && torsoAngle > 25;
   return {
     hipMid,
     shoulderMid,
-    centroid: mid2(hipMid, shoulderMid),
+    centroid: mid3(hipMid, shoulderMid),
     torsoLen,
-    shoulderW: dist(j.lShoulder, j.rShoulder),
+    shoulderW: dist3(j.lShoulder, j.rShoulder),
     torsoAngle,
     downRaw: horizontalDown || kneeDown,
   };
@@ -74,18 +77,18 @@ interface ZoneHit {
   atKnee?: boolean;
 }
 
-function nearestZone(opp: FighterObs, d: Derived, eff: Pt): ZoneHit {
+function nearestZone(opp: FighterObs, d: Derived, eff: Pt3): ZoneHit {
   const j = opp.joints;
   const L = d.torsoLen;
   const candidates: ZoneHit[] = [];
 
   // Head (around the nose).
-  candidates.push({ zone: 'kepala', contactRatio: dist(eff, j.nose) / (0.36 * L) });
+  candidates.push({ zone: 'kepala', contactRatio: dist3(eff, j.nose) / (0.36 * L) });
   // Neck (nose -> shoulders, upper part).
-  const neck = pointSeg(eff, j.nose, d.shoulderMid);
+  const neck = pointSeg3(eff, j.nose, d.shoulderMid);
   if (neck.u < 0.75) candidates.push({ zone: 'leher', contactRatio: neck.d / (0.2 * L) });
   // Torso capsule (togok).
-  const torso = pointSeg(eff, d.shoulderMid, d.hipMid);
+  const torso = pointSeg3(eff, d.shoulderMid, d.hipMid);
   const capsuleR = Math.max(0.5 * d.shoulderW, 0.26 * L);
   if (torso.u >= -0.05 && torso.u <= 1.05) {
     const zone: TargetZone = torso.d > 0.2 * L ? 'rusuk' : torso.u < 0.5 ? 'dada' : 'perut';
@@ -96,18 +99,18 @@ function nearestZone(opp: FighterObs, d: Derived, eff: Pt): ZoneHit {
   }
   // Legs.
   let legBest = { ratio: Infinity, atKnee: false };
-  const legSegs: [Pt, Pt][] = [
+  const legSegs: [Pt3, Pt3][] = [
     [j.lHip, j.lKnee],
     [j.lKnee, j.lAnkle],
     [j.rHip, j.rKnee],
     [j.rKnee, j.rAnkle],
   ];
   for (const [a, b] of legSegs) {
-    const r = pointSeg(eff, a, b).d / (0.15 * L);
+    const r = pointSeg3(eff, a, b).d / (0.15 * L);
     if (r < legBest.ratio) legBest = { ratio: r, atKnee: false };
   }
   for (const knee of [j.lKnee, j.rKnee]) {
-    const r = dist(eff, knee) / (0.15 * L);
+    const r = dist3(eff, knee) / (0.15 * L);
     if (r < legBest.ratio) legBest = { ratio: r, atKnee: true };
   }
   candidates.push({ zone: 'kaki', contactRatio: legBest.ratio, atKnee: legBest.atKnee });
@@ -149,10 +152,10 @@ interface ImpactInfo {
 }
 
 interface LimbState {
-  prevPos: Pt | null;
+  prevPos: Pt3 | null;
   prevT: number;
   speed: number; // torso lengths / s (smoothed)
-  vel: { x: number; y: number };
+  vel: { x: number; y: number; z: number };
   active: boolean;
   startT: number;
   peakSpeed: number;
@@ -172,7 +175,7 @@ const newLimbState = (): LimbState => ({
   prevPos: null,
   prevT: 0,
   speed: 0,
-  vel: { x: 0, y: 0 },
+  vel: { x: 0, y: 0, z: 0 },
   active: false,
   startT: 0,
   peakSpeed: 0,
@@ -337,10 +340,11 @@ export class DuelEventDetector {
           const fdt = Math.max(0.008, t - ls.prevT);
           const vx = (pos.x - ls.prevPos.x) / fdt / myD.torsoLen;
           const vy = (pos.y - ls.prevPos.y) / fdt / myD.torsoLen;
-          ls.vel = { x: ls.vel.x + (vx - ls.vel.x) * 0.55, y: ls.vel.y + (vy - ls.vel.y) * 0.55 };
-          ls.speed = Math.hypot(ls.vel.x, ls.vel.y);
+          const vz = (pos.z - ls.prevPos.z) / fdt / myD.torsoLen;
+          ls.vel = { x: ls.vel.x + (vx - ls.vel.x) * 0.55, y: ls.vel.y + (vy - ls.vel.y) * 0.55, z: ls.vel.z + (vz - ls.vel.z) * 0.55 };
+          ls.speed = Math.hypot(ls.vel.x, ls.vel.y, ls.vel.z);
         }
-        ls.prevPos = { x: pos.x, y: pos.y };
+        ls.prevPos = { x: pos.x, y: pos.y, z: pos.z };
         ls.prevT = t;
 
         if (!opp || !oppD || st.isDown) {
@@ -349,15 +353,15 @@ export class DuelEventDetector {
           return;
         }
 
-        const toOpp = { x: oppD.centroid.x - pos.x, y: oppD.centroid.y - pos.y };
-        const toOppLen = Math.max(1e-9, Math.hypot(toOpp.x, toOpp.y));
-        const dirDot = (ls.vel.x * toOpp.x + ls.vel.y * toOpp.y) / (Math.max(1e-9, ls.speed) * toOppLen || 1);
+        const toOpp = { x: oppD.centroid.x - pos.x, y: oppD.centroid.y - pos.y, z: oppD.centroid.z - pos.z };
+        const toOppLen = Math.max(1e-9, Math.hypot(toOpp.x, toOpp.y, toOpp.z));
+        const dirDot = (ls.vel.x * toOpp.x + ls.vel.y * toOpp.y + ls.vel.z * toOpp.z) / (Math.max(1e-9, ls.speed) * toOppLen || 1);
         const speedOn = limb.kind === 'hand' ? HAND_SPEED_ON : FOOT_SPEED_ON;
 
         const rootNow = me.joints[limb.root];
         const midNow = me.joints[limb.mid];
-        const segNow = dist(rootNow, midNow) + dist(midNow, pos);
-        const extensionNow = segNow > 1e-9 ? dist(rootNow, pos) / segNow : 0;
+        const segNow = dist3(rootNow, midNow) + dist3(midNow, pos);
+        const extensionNow = segNow > 1e-9 ? dist3(rootNow, pos) / segNow : 0;
 
         if (!ls.active) {
           // A new strike must start from a chambered/guard position — this
@@ -375,7 +379,7 @@ export class DuelEventDetector {
           } else {
             // Low, fast foot near the opponent's legs = sweep context for jatuhan.
             if (limb.kind === 'foot' && ls.speed >= 2.0) {
-              const ankleDist = Math.min(dist(pos, opp.joints.lAnkle), dist(pos, opp.joints.rAnkle));
+              const ankleDist = Math.min(dist3(pos, opp.joints.lAnkle), dist3(pos, opp.joints.rAnkle));
               if (ankleDist < 0.35 * oppD.torsoLen) st.lastSweepAt = t;
             }
             return;
@@ -387,13 +391,13 @@ export class DuelEventDetector {
         const zone = nearestZone(opp, oppD, pos);
         const root = me.joints[limb.root];
         const midJoint = me.joints[limb.mid];
-        const segSum = dist(root, midJoint) + dist(midJoint, pos);
-        const extension = segSum > 1e-9 ? dist(root, pos) / segSum : 0;
+        const segSum = dist3(root, midJoint) + dist3(midJoint, pos);
+        const extension = segSum > 1e-9 ? dist3(root, pos) / segSum : 0;
         // Blocked? Opponent wrist intercepted the effector away from their own torso line.
         const oppWrists = [opp.joints.lWrist, opp.joints.rWrist];
         const blocked = oppWrists.some((w) => {
-          const nearEff = dist(w, pos) < 0.26 * oppD.torsoLen;
-          const awayFromTorso = pointSeg(w, oppD.shoulderMid, oppD.hipMid).d > 0.13 * oppD.torsoLen;
+          const nearEff = dist3(w, pos) < 0.26 * oppD.torsoLen;
+          const awayFromTorso = pointSeg3(w, oppD.shoulderMid, oppD.hipMid).d > 0.13 * oppD.torsoLen;
           return nearEff && awayFromTorso;
         });
         const info: ImpactInfo = {
@@ -401,9 +405,9 @@ export class DuelEventDetector {
           zone,
           blocked,
           extension,
-          jointAngle: angleAtDeg(root, midJoint, pos),
+          jointAngle: angleAtDeg3(root, midJoint, pos),
           effHeightNorm: (myD.hipMid.y - pos.y) / myD.torsoLen,
-          gapNorm: dist(myD.centroid, oppD.centroid) / ((myD.torsoLen + oppD.torsoLen) / 2),
+          gapNorm: dist3(myD.centroid, oppD.centroid) / ((myD.torsoLen + oppD.torsoLen) / 2),
         };
         if (!Number.isFinite(ls.startContactRatio)) ls.startContactRatio = zone.contactRatio;
         if (!ls.best || zone.contactRatio < ls.best.zone.contactRatio) ls.best = info;
@@ -442,7 +446,7 @@ export class DuelEventDetector {
     // Snapshot for the UI.
     const d0 = derived[0];
     const d1 = derived[1];
-    const distanceNorm = d0 && d1 ? dist(d0.centroid, d1.centroid) / ((d0.torsoLen + d1.torsoLen) / 2) : null;
+    const distanceNorm = d0 && d1 ? dist3(d0.centroid, d1.centroid) / ((d0.torsoLen + d1.torsoLen) / 2) : null;
     this.snapshot = {
       distanceNorm,
       clinch: {
@@ -471,7 +475,7 @@ export class DuelEventDetector {
     if (this.pendingDrop) return;
     const dA = derived[aIdx]!;
     const dV = derived[vIdx]!;
-    const gap = dist(dA.centroid, dV.centroid) / ((dA.torsoLen + dV.torsoLen) / 2);
+    const gap = dist3(dA.centroid, dV.centroid) / ((dA.torsoLen + dV.torsoLen) / 2);
     const inContact = gap < 1.5 || t0 - this.lastClinchAt < 2.5 || t0 - this.fighters[aIdx].lastSweepAt < 1.4;
     if (!inContact) return; // slipped on their own — no jatuhan
     this.pendingDrop = { victim, t0, confirmAt: t0 + 0.65 };
@@ -557,18 +561,18 @@ export class DuelEventDetector {
   private wrapScore(me: FighterObs, myD: Derived, oppD: Derived): { near: number; wrapped: number; claspPast: boolean } {
     let near = 0;
     let wrapped = 0;
-    const pastCentre = (p: Pt) =>
-      (p.x - oppD.centroid.x) * (myD.centroid.x - oppD.centroid.x) + (p.y - oppD.centroid.y) * (myD.centroid.y - oppD.centroid.y) < 0;
+    const pastCentre = (p: Pt3) =>
+      (p.x - oppD.centroid.x) * (myD.centroid.x - oppD.centroid.x) + (p.y - oppD.centroid.y) * (myD.centroid.y - oppD.centroid.y) + (p.z - oppD.centroid.z) * (myD.centroid.z - oppD.centroid.z) < 0;
     for (const w of [me.joints.lWrist, me.joints.rWrist]) {
-      const dAxis = pointSeg(w, oppD.shoulderMid, oppD.hipMid).d;
+      const dAxis = pointSeg3(w, oppD.shoulderMid, oppD.hipMid).d;
       if (dAxis < 0.52 * oppD.torsoLen) {
         near += 1;
         if (pastCentre(w)) wrapped += 1;
       }
     }
     // Hands clasped BEHIND the opponent (not merely touching at own chest).
-    const wristMid = mid2(me.joints.lWrist, me.joints.rWrist);
-    const claspPast = dist(me.joints.lWrist, me.joints.rWrist) < 0.32 * myD.torsoLen && pastCentre(wristMid);
+    const wristMid = mid3(me.joints.lWrist, me.joints.rWrist);
+    const claspPast = dist3(me.joints.lWrist, me.joints.rWrist) < 0.32 * myD.torsoLen && pastCentre(wristMid);
     return { near, wrapped, claspPast };
   }
 
@@ -582,7 +586,7 @@ export class DuelEventDetector {
       return events;
     }
     const avg = (d0.torsoLen + d1.torsoLen) / 2;
-    const gap = dist(d0.centroid, d1.centroid) / avg;
+    const gap = dist3(d0.centroid, d1.centroid) / avg;
     const close = gap < 0.95;
 
     if (close) {
@@ -619,7 +623,7 @@ export class DuelEventDetector {
         const ownerObs = candidate === 'merah' ? o0 : o1;
         const victimNose = candidate === 'merah' ? o1.joints.nose : o0.joints.nose;
         const victimL = candidate === 'merah' ? d1.torsoLen : d0.torsoLen;
-        const neckTouch = [ownerObs.joints.lWrist, ownerObs.joints.rWrist].some((w) => dist(w, victimNose) < 0.3 * victimL);
+        const neckTouch = [ownerObs.joints.lWrist, ownerObs.joints.rWrist].some((w) => dist3(w, victimNose) < 0.3 * victimL);
         if (neckTouch) c.neckTouchSeconds[candidate] += dt;
       } else if (c.owner !== null && c.ownerGapSince === null) {
         c.ownerGapSince = t;

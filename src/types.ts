@@ -352,7 +352,8 @@ export interface FighterStats {
   disqualified: boolean;
 }
 
-export type DuelSource = 'camera' | 'video' | 'demo' | 'manual';
+/** camera = 1 camera, rig = synchronized multi-camera 3D rig. */
+export type DuelSource = 'camera' | 'rig' | 'video' | 'demo' | 'manual';
 
 export interface DuelReport {
   id: string;
