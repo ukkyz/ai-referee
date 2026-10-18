@@ -1,3 +1,5 @@
+'use client';
+
 import { SlidersHorizontal, Volume2, VolumeX, X } from 'lucide-react';
 import { DEFAULT_SETTINGS, type ModelKind, type RefereeSettings } from '../types';
 import { MODEL_INFO } from '../lib/pose/detector';

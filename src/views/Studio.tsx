@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, Camera, CircleDot, Clapperboard, Crosshair, Play, Plus, Save, Square, Timer, Trash2, Upload, Wand } from 'lucide-react';
 import { FEATURE_KEYS, type FeatureWeights, type Features, type Jurus, type JurusStep, type Level, type PoseCategory, type RefPose, type RefereeSettings, type Skeleton } from '../types';
@@ -334,7 +336,7 @@ export default function Studio({ initial, settings, onSave, onTest, onBack }: Pr
               <div className="bg-batik absolute inset-0 grid place-items-center">
                 <div className="max-w-md px-6 text-center">
                   <Clapperboard className="mx-auto h-12 w-12 text-gold-300" />
-                  <h3 className="mt-3 font-display text-2xl uppercase text-gold-100">Record a master's demonstration</h3>
+                  <h3 className="mt-3 font-display text-2xl uppercase text-gold-100">Record a master&rsquo;s demonstration</h3>
                   <p className="mt-1 text-sm text-stone-400">
                     Press record, then perform the jurus. Every time the performer holds a position still for ~0.7 s, it is captured as a key movement with its timing. Or press <Kbd>Space</Kbd> to capture manually.
                   </p>

@@ -1,3 +1,5 @@
+'use client';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PoseLandmarker } from '@mediapipe/tasks-vision';
 import { detectPose, getPoseLandmarker } from '../lib/pose/detector';
