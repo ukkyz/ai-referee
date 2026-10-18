@@ -1,11 +1,12 @@
 import 'server-only';
 
-import { DEFAULT_SETTINGS, type Jurus, type RefereeSettings, type Report } from '@/types';
+import { DEFAULT_SETTINGS, type DuelReport, type Jurus, type RefereeSettings, type Report } from '@/types';
 import { databasePath, getDb } from './client';
-import { validateJurus, validateReport, validateSettings } from './validate';
+import { validateDuelReport, validateJurus, validateReport, validateSettings } from './validate';
 
 /** History was capped at 25 by the localStorage quota; SQLite raises the cap. */
 export const MAX_HISTORY = 100;
+export const MAX_DUELS = 100;
 
 /** Round floats to 3 decimals to keep stored reports compact (as before). */
 const compact = (_k: string, v: unknown) => (typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1000) / 1000 : v);
@@ -15,6 +16,9 @@ interface JurusRow {
   payload: string;
 }
 interface ReportRow {
+  payload: string;
+}
+interface DuelRow {
   payload: string;
 }
 interface SettingsRow {
@@ -36,6 +40,14 @@ const parseJurus = (row: JurusRow): Jurus | null => {
 const parseReport = (row: ReportRow): Report | null => {
   try {
     return validateReport(JSON.parse(row.payload));
+  } catch {
+    return null;
+  }
+};
+
+const parseDuel = (row: DuelRow): DuelReport | null => {
+  try {
+    return validateDuelReport(JSON.parse(row.payload));
   } catch {
     return null;
   }
@@ -194,6 +206,71 @@ export function countReports(): number {
   return (getDb().prepare('SELECT COUNT(*) AS n FROM reports').get() as CountRow).n;
 }
 
+/* -------------------------------------------------------------------- duels */
+
+export function listDuels(limit = 50): DuelReport[] {
+  const safeLimit = Math.min(MAX_DUELS, Math.max(1, Math.floor(limit) || 50));
+  const rows = getDb().prepare('SELECT payload FROM duels ORDER BY created_at DESC LIMIT ?').all(safeLimit) as DuelRow[];
+  return rows.map(parseDuel).filter((d): d is DuelReport => d !== null);
+}
+
+export function getDuel(id: string): DuelReport | null {
+  const row = getDb().prepare('SELECT payload FROM duels WHERE id = ?').get(id) as DuelRow | undefined;
+  return row ? parseDuel(row) : null;
+}
+
+const INSERT_DUEL = /* sql */ `
+INSERT OR REPLACE INTO duels
+  (id, merah_name, biru_name, winner, merah_score, biru_score, source, rounds, events_count, duration, created_at, payload)
+VALUES
+  (@id, @merah_name, @biru_name, @winner, @merah_score, @biru_score, @source, @rounds, @events_count, @duration, @created_at, @payload)
+`;
+
+function duelParams(d: DuelReport) {
+  return {
+    id: d.id,
+    merah_name: d.config.merah.name ?? '',
+    biru_name: d.config.biru.name ?? '',
+    winner: d.winner,
+    merah_score: d.fighters[0]?.score ?? 0,
+    biru_score: d.fighters[1]?.score ?? 0,
+    source: d.source,
+    rounds: d.config.rounds ?? 1,
+    events_count: d.events.length,
+    duration: d.duration,
+    created_at: d.createdAt,
+    payload: toJson(d),
+  };
+}
+
+/** Keep only the newest MAX_DUELS matches. */
+function pruneDuels() {
+  getDb()
+    .prepare('DELETE FROM duels WHERE id IN (SELECT id FROM duels ORDER BY created_at DESC LIMIT -1 OFFSET ?)')
+    .run(MAX_DUELS);
+}
+
+export function insertDuel(duel: DuelReport): DuelReport {
+  const db = getDb();
+  db.transaction(() => {
+    db.prepare(INSERT_DUEL).run(duelParams(duel));
+    pruneDuels();
+  })();
+  return getDuel(duel.id) ?? duel;
+}
+
+export function deleteDuel(id: string): boolean {
+  return getDb().prepare('DELETE FROM duels WHERE id = ?').run(id).changes > 0;
+}
+
+export function clearDuels(): number {
+  return getDb().prepare('DELETE FROM duels').run().changes;
+}
+
+export function countDuels(): number {
+  return (getDb().prepare('SELECT COUNT(*) AS n FROM duels').get() as CountRow).n;
+}
+
 /* ------------------------------------------------------- legacy import / misc */
 
 export interface LegacyImport {
@@ -236,7 +313,7 @@ export function importLegacyData(input: LegacyImport): { settings: boolean; juru
   return { settings: settingsImported, jurus: jurusImported, reports: reportsImported };
 }
 
-export function healthCheck(): { ok: boolean; database: string; counts: { customJurus: number; reports: number; settingsPersisted: boolean } } {
+export function healthCheck(): { ok: boolean; database: string; counts: { customJurus: number; reports: number; duels: number; settingsPersisted: boolean } } {
   getDb().prepare('SELECT 1').get();
   const file = databasePath();
   return {
@@ -245,6 +322,7 @@ export function healthCheck(): { ok: boolean; database: string; counts: { custom
     counts: {
       customJurus: countCustomJurus(),
       reports: countReports(),
+      duels: countDuels(),
       settingsPersisted: getSettings().persisted,
     },
   };

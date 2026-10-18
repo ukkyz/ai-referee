@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { DEFAULT_SETTINGS, type Jurus, type Level, type ModelKind, type RefereeSettings, type Report } from '@/types';
+import { DEFAULT_SETTINGS, type DuelReport, type Jurus, type Level, type ModelKind, type RefereeSettings, type Report } from '@/types';
 
 /**
  * Minimal runtime shape validation for API payloads. The client is trusted to
@@ -15,6 +15,8 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 const LEVELS: Level[] = ['Pemula', 'Menengah', 'Mahir'];
 const MODELS: ModelKind[] = ['lite', 'full', 'heavy'];
 const SOURCES = ['camera', 'video', 'demo'] as const;
+const DUEL_SOURCES = ['camera', 'video', 'demo', 'manual'] as const;
+const DUEL_WINNERS = ['merah', 'biru', 'seri'] as const;
 
 export function validateJurus(value: unknown): Jurus | null {
   if (!isRecord(value)) return null;
@@ -39,6 +41,19 @@ export function validateReport(value: unknown): Report | null {
   if (!SOURCES.includes(value.source as (typeof SOURCES)[number])) return null;
   if (!Array.isArray(value.steps) || !Array.isArray(value.judges)) return null;
   return value as unknown as Report;
+}
+
+export function validateDuelReport(value: unknown): DuelReport | null {
+  if (!isRecord(value)) return null;
+  if (!isStr(value.id) || !isNum(value.createdAt) || !isNum(value.duration)) return null;
+  if (!DUEL_SOURCES.includes(value.source as (typeof DUEL_SOURCES)[number])) return null;
+  if (!DUEL_WINNERS.includes(value.winner as (typeof DUEL_WINNERS)[number])) return null;
+  if (!isRecord(value.config) || !isRecord(value.config.merah) || !isRecord(value.config.biru)) return null;
+  if (typeof value.config.merah.name !== 'string' || typeof value.config.biru.name !== 'string') return null;
+  if (!Array.isArray(value.events) || !Array.isArray(value.fighters) || value.fighters.length !== 2) return null;
+  const fighterOk = (f: unknown): boolean => isRecord(f) && isNum(f.score) && isRecord(f.techniques);
+  if (!value.fighters.every(fighterOk)) return null;
+  return value as unknown as DuelReport;
 }
 
 /** Merge an untrusted settings object over the defaults, coercing types. */

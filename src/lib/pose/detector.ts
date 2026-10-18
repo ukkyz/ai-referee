@@ -27,10 +27,15 @@ export const MODEL_INFO: Record<ModelKind, { label: string; url: string; size: s
 type Fileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
 
 let filesetPromise: Promise<Fileset> | null = null;
-const cache = new Map<ModelKind, Promise<PoseLandmarker>>();
+const cache = new Map<string, Promise<PoseLandmarker>>();
 
-export function getPoseLandmarker(model: ModelKind): Promise<PoseLandmarker> {
-  const existing = cache.get(model);
+/**
+ * Get (and cache) a Pose Landmarker. `numPoses` is 1 for Seni judging and 2
+ * for Tanding (duel) analysis — each combination is cached separately.
+ */
+export function getPoseLandmarker(model: ModelKind, numPoses = 1): Promise<PoseLandmarker> {
+  const key = `${model}:${numPoses}`;
+  const existing = cache.get(key);
   if (existing) return existing;
   const p = (async () => {
     if (!filesetPromise) filesetPromise = FilesetResolver.forVisionTasks(WASM_URL);
@@ -45,7 +50,7 @@ export function getPoseLandmarker(model: ModelKind): Promise<PoseLandmarker> {
       PoseLandmarker.createFromOptions(fileset, {
         baseOptions: { modelAssetPath: MODEL_INFO[model].url, delegate },
         runningMode: 'VIDEO',
-        numPoses: 1,
+        numPoses,
         minPoseDetectionConfidence: 0.5,
         minPosePresenceConfidence: 0.5,
         minTrackingConfidence: 0.5,
@@ -58,8 +63,8 @@ export function getPoseLandmarker(model: ModelKind): Promise<PoseLandmarker> {
       return await make('CPU');
     }
   })();
-  cache.set(model, p);
-  p.catch(() => cache.delete(model));
+  cache.set(key, p);
+  p.catch(() => cache.delete(key));
   return p;
 }
 

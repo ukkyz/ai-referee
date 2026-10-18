@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, type Jurus, type RefereeSettings, type Report } from '../types';
+import { DEFAULT_SETTINGS, type DuelReport, type Jurus, type RefereeSettings, type Report } from '../types';
 
 /**
  * Persistence client — talks to the Next.js Route Handlers under /api/*,
@@ -105,12 +105,30 @@ export const clearHistory = async (): Promise<void> => {
   await api('/api/history', { method: 'DELETE' });
 };
 
+export const fetchDuels = async (limit = 50): Promise<DuelReport[]> => {
+  const data = await api<{ duels: DuelReport[] }>(`/api/duels?limit=${limit}`);
+  return data.duels ?? [];
+};
+
+export const persistDuel = async (duel: DuelReport): Promise<DuelReport> => {
+  const data = await api<{ duel: DuelReport }>('/api/duels', {
+    method: 'POST',
+    body: JSON.stringify({ duel }),
+  });
+  return data.duel;
+};
+
+export const removeDuel = async (id: string): Promise<void> => {
+  await api(`/api/duels/${encodeURIComponent(id)}`, { method: 'DELETE' });
+};
+
 /* -------------------------------------------------------------- bootstrap */
 
 export interface BootstrapData {
   settings: RefereeSettings;
   customs: Jurus[];
   history: Report[];
+  duels: DuelReport[];
   migrated: boolean;
 }
 
@@ -120,6 +138,7 @@ export interface BootstrapData {
  */
 export async function bootstrapFromServer(): Promise<BootstrapData> {
   let [settingsRes, customs, history] = await Promise.all([fetchSettings(), fetchCustomJurus(), fetchHistory()]);
+  const duels = await fetchDuels().catch(() => [] as DuelReport[]);
   let migrated = false;
 
   try {
@@ -147,7 +166,7 @@ export async function bootstrapFromServer(): Promise<BootstrapData> {
     console.warn('[storage] legacy localStorage import failed', e);
   }
 
-  return { settings: settingsRes.settings, customs, history, migrated };
+  return { settings: settingsRes.settings, customs, history, duels, migrated };
 }
 
 /* ------------------------------------------------------------------ misc */

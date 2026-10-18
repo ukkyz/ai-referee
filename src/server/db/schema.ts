@@ -7,7 +7,7 @@
  * embeds per-step skeletons, judges, feedback and timelines — is kept losslessly
  * in a `payload` JSON column. Timestamps are epoch milliseconds.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_SQL = /* sql */ `
 CREATE TABLE IF NOT EXISTS custom_jurus (
@@ -40,6 +40,21 @@ CREATE TABLE IF NOT EXISTS reports (
   payload      TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS duels (
+  id            TEXT PRIMARY KEY,
+  merah_name    TEXT NOT NULL DEFAULT '',
+  biru_name     TEXT NOT NULL DEFAULT '',
+  winner        TEXT NOT NULL CHECK (winner IN ('merah', 'biru', 'seri')),
+  merah_score   REAL NOT NULL DEFAULT 0,
+  biru_score    REAL NOT NULL DEFAULT 0,
+  source        TEXT NOT NULL CHECK (source IN ('camera', 'video', 'demo', 'manual')),
+  rounds        INTEGER NOT NULL DEFAULT 1,
+  events_count  INTEGER NOT NULL DEFAULT 0,
+  duration      REAL NOT NULL DEFAULT 0,
+  created_at    INTEGER NOT NULL,
+  payload       TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   id         INTEGER PRIMARY KEY CHECK (id = 1),
   payload    TEXT NOT NULL,
@@ -49,4 +64,5 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE INDEX IF NOT EXISTS idx_reports_created ON reports (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_reports_jurus   ON reports (jurus_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jurus_created   ON custom_jurus (created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_duels_created   ON duels (created_at DESC);
 `;
